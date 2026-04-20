@@ -1,44 +1,45 @@
-import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
+import { ConvexHttpClient } from "convex/browser";
+import {
+  convexAuthNextjsMiddleware,
+  createRouteMatcher,
+  nextjsMiddlewareRedirect,
+} from "@convex-dev/auth/nextjs/server";
+import { api } from "@/convex/_generated/api";
 
-/**
- * Admin gating uses GET /api/auth/verify-admin (Convex `users.role`) so it stays
- * in sync when a user is promoted in the dashboard; the session JWT still
- * encodes `role` at login time and is not the source of truth here.
- */
-export async function middleware(request: NextRequest) {
-  const path = request.nextUrl.pathname;
-  if (!path.startsWith("/admin")) {
-    return NextResponse.next();
-  }
+const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
 
-  const checkUrl = request.nextUrl.clone();
-  checkUrl.pathname = "/api/auth/verify-admin";
-  checkUrl.search = "";
-
-  const res = await fetch(checkUrl, {
-    headers: {
-      cookie: request.headers.get("cookie") ?? "",
-    },
-    cache: "no-store",
-  });
-
-  let body: { admin?: boolean } = {};
-  try {
-    body = (await res.json()) as { admin?: boolean };
-  } catch {
-    /* empty */
-  }
-
-  if (res.status === 401) {
-    return NextResponse.redirect(new URL("/login", request.url));
-  }
-  if (res.status === 403 || !body.admin) {
-    return NextResponse.redirect(new URL("/", request.url));
-  }
-  return NextResponse.next();
-}
+export default convexAuthNextjsMiddleware(
+  async (request, { convexAuth }) => {
+    if (!isAdminRoute(request)) {
+      return;
+    }
+    if (!(await convexAuth.isAuthenticated())) {
+      return nextjsMiddlewareRedirect(request, "/login");
+    }
+    const token = await convexAuth.getToken();
+    if (!token) {
+      return nextjsMiddlewareRedirect(request, "/login");
+    }
+    const url = process.env.NEXT_PUBLIC_CONVEX_URL;
+    if (!url) {
+      return nextjsMiddlewareRedirect(request, "/login");
+    }
+    const client = new ConvexHttpClient(url);
+    client.setAuth(token);
+    const isAdmin = await client.query(api.users.checkIsAdmin, {});
+    if (!isAdmin) {
+      return nextjsMiddlewareRedirect(request, "/");
+    }
+  },
+  {
+    cookieConfig: { maxAge: 60 * 60 * 24 * 30 },
+  },
+);
 
 export const config = {
-  matcher: ["/admin", "/admin/:path*"],
+  matcher: [
+    "/((?!.*\\..*|_next).*)",
+    "/",
+    "/(api|trpc)(.*)",
+  ],
 };

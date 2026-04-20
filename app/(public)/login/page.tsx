@@ -8,11 +8,11 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAuthStore } from "@/stores/useAuthStore";
+import { useAuthActions } from "@convex-dev/auth/react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const login = useAuthStore((s) => s.login);
+  const { signIn } = useAuthActions();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -21,34 +21,12 @@ export default function LoginPage() {
     e.preventDefault();
     setBusy(true);
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = (await res.json()) as {
-        ok?: boolean;
-        user?: { id: string; email: string; name: string; role: "admin" | "user" };
-      };
-      if (!res.ok) {
-        toast.error("Invalid credentials");
-        return;
-      }
-      if (data.user) {
-        login({ ...data.user, id: data.user.id });
-      }
-      await useAuthStore.getState().hydrate();
-      // If JWT verification fails (issuer / SITE_URL mismatch), hydrate clears session — restore optimistic login.
-      if (!useAuthStore.getState().user && data.user) {
-        login({ ...data.user, id: data.user.id });
-        toast.error(
-          "Session verification failed. In Vercel env set SITE_URL and NEXT_PUBLIC_SITE_URL to your exact site origin (https://…, no trailing slash), match Convex SITE_URL, then redeploy.",
-        );
-      } else {
-        toast.success("Welcome back");
-      }
+      await signIn("password", { email, password, flow: "signIn" });
+      toast.success("Welcome back");
       router.push("/");
       router.refresh();
+    } catch {
+      toast.error("Invalid credentials");
     } finally {
       setBusy(false);
     }

@@ -10,7 +10,7 @@ import { api as convexApi } from "@/convex/_generated/api";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { useAuthStore } from "@/stores/useAuthStore";
+import { useSessionUser } from "@/hooks/useSessionUser";
 import { usePostStore } from "@/stores/usePostStore";
 import type { Doc } from "@/convex/_generated/dataModel";
 import { PostComments } from "@/components/blog/PostComments";
@@ -53,7 +53,7 @@ export function PostClient({
     post ? { postId: post._id, categoryId: post.categoryId } : "skip",
   );
 
-  const user = useAuthStore((s) => s.user);
+  const { user } = useSessionUser();
   const storeBookmarked = usePostStore((s) => s.bookmarked);
   const setBookmarkedStore = usePostStore((s) => s.setBookmarked);
   const setReactionState = usePostStore((s) => s.setReactionState);
@@ -89,11 +89,12 @@ export function PostClient({
   }, [counts, setReactionState]);
 
   useEffect(() => {
-    if (!post || !user?.bookmarks) {
+    if (!post || !user) {
       setBookmarkedStore(false);
       return;
     }
-    setBookmarkedStore(user.bookmarks.includes(post._id));
+    const marks = user.bookmarks ?? [];
+    setBookmarkedStore(marks.includes(post._id));
   }, [post, user, setBookmarkedStore]);
 
   const html = useMemo(() => {

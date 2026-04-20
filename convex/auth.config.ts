@@ -1,40 +1,21 @@
 import type { AuthConfig } from "convex/server";
 
 /**
- * Every distinct JWT `iss` you mint (see `signAccessToken` + `getRequestIssuer`) needs a
- * matching provider here, with the same `jwks` / `CONVEX_AUTH_JWKS_DATA_URI`.
+ * Convex Auth uses its own JWT issuer (`CONVEX_SITE_URL` / deployment URL).
+ * Run `npx convex dev` after changing auth configuration.
  */
-const siteUrl = (
+const domain = (
+  process.env.CONVEX_SITE_URL ??
   process.env.SITE_URL ??
   process.env.NEXT_PUBLIC_SITE_URL ??
   "http://localhost:3000"
 ).replace(/\/$/, "");
 
-const dataUri = process.env.CONVEX_AUTH_JWKS_DATA_URI?.trim();
-
-const jwks =
-  dataUri && dataUri.length > 0 ? dataUri : `${siteUrl}/api/auth/jwks`;
-
-const extraIssuers = (process.env.JWT_EXTRA_ISSUERS ?? "")
-  .split(",")
-  .map((s) => s.trim().replace(/\/$/, ""))
-  .filter(Boolean);
-
-const issuers = Array.from(
-  new Set([
-    siteUrl,
-    ...extraIssuers,
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-  ]),
-);
-
 export default {
-  providers: issuers.map((issuer) => ({
-    type: "customJwt" as const,
-    issuer,
-    jwks,
-    algorithm: "RS256" as const,
-    applicationID: "benjafamily-blog",
-  })),
+  providers: [
+    {
+      domain,
+      applicationID: "convex",
+    },
+  ],
 } satisfies AuthConfig;

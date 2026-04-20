@@ -8,12 +8,22 @@ import {
 } from "./lib/auth";
 import type { Id } from "./_generated/dataModel";
 
+function stripSensitive<T extends { passwordHash?: string }>(
+  user: T | null,
+): Omit<T, "passwordHash"> | null {
+  if (!user) {
+    return null;
+  }
+  const { passwordHash: _p, ...rest } = user;
+  return rest;
+}
+
 export const getByEmailInternal = internalQuery({
   args: { email: v.string() },
   handler: async (ctx, { email }) => {
     return await ctx.db
       .query("users")
-      .withIndex("by_email", (q) => q.eq("email", email.toLowerCase().trim()))
+      .withIndex("email", (q) => q.eq("email", email.toLowerCase().trim()))
       .unique();
   },
 });
@@ -22,11 +32,20 @@ export const getById = query({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
     const user = await ctx.db.get(userId);
-    if (!user) {
-      return null;
+    return stripSensitive(user);
+  },
+});
+
+/** True when the signed-in Convex Auth user has `role: "admin"` on their profile doc. */
+export const checkIsAdmin = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getUserId(ctx);
+    if (!userId) {
+      return false;
     }
-    const { passwordHash: _p, ...rest } = user;
-    return rest;
+    const user = await ctx.db.get(userId);
+    return user?.role === "admin";
   },
 });
 
@@ -41,36 +60,16 @@ export const getCurrent = query({
     if (!user) {
       return null;
     }
-    const { passwordHash: _p, ...rest } = user;
-    return { ...rest, _id: user._id };
-  },
-});
-
-export const register = mutation({
-  args: {
-    name: v.string(),
-    email: v.string(),
-    passwordHash: v.string(),
-  },
-  handler: async (ctx, { name, email, passwordHash }) => {
-    const normalized = email.toLowerCase().trim();
-    const existing = await ctx.db
-      .query("users")
-      .withIndex("by_email", (q) => q.eq("email", normalized))
-      .unique();
-    if (existing) {
-      throw new Error("Email already registered");
+    const stripped = stripSensitive(user);
+    if (!stripped) {
+      return null;
     }
-    const id = await ctx.db.insert("users", {
-      name: name.trim(),
-      email: normalized,
-      passwordHash,
-      role: "user",
-      createdAt: Date.now(),
-      isVerified: false,
-      bookmarks: [],
-    });
-    return id;
+    const role = stripped.role ?? "user";
+    return {
+      ...stripped,
+      id: stripped._id,
+      role,
+    };
   },
 });
 
@@ -99,20 +98,11 @@ export const updateProfile = mutation({
   },
 });
 
-export const setPasswordHash = mutation({
-  args: { userId: v.id("users"), passwordHash: v.string() },
-  handler: async (ctx, { userId, passwordHash }) => {
-    const self = await requireUser(ctx);
-    if (self !== userId) {
-      await requireAdmin(ctx);
-    }
-    await ctx.db.patch(userId, { passwordHash });
-    return null;
-  },
-});
-
 export const setRole = mutation({
-  args: { userId: v.id("users"), role: v.union(v.literal("admin"), v.literal("user")) },
+  args: {
+    userId: v.id("users"),
+    role: v.union(v.literal("admin"), v.literal("user")),
+  },
   handler: async (ctx, { userId, role }) => {
     await requireAdmin(ctx);
     const self = await getUserId(ctx);
@@ -121,9 +111,9 @@ export const setRole = mutation({
     }
     if (role === "user") {
       const everyone = await ctx.db.query("users").collect();
-      const admins = everyone.filter((u) => u.role === "admin");
+      const admins = everyone.filter((u) => (u.role ?? "user") === "admin");
       const target = everyone.find((u) => u._id === userId);
-      if (target?.role === "admin" && admins.length <= 1) {
+      if ((target?.role ?? "user") === "admin" && admins.length <= 1) {
         throw new Error("Cannot remove the last admin");
       }
     }
@@ -150,7 +140,7 @@ export const listForAdmin = query({
       .take(Math.min(limit, 200));
     return {
       ok: true as const,
-      users: rows.map(({ passwordHash: _p, ...u }) => u),
+      users: rows.map((u) => stripSensitive(u)!),
     };
   },
 });
@@ -163,7 +153,7 @@ export const toggleBookmark = mutation({
     if (!user) {
       throw new Error("Unauthorized");
     }
-    const bookmarks = [...user.bookmarks];
+    const bookmarks = [...(user.bookmarks ?? [])];
     const i = bookmarks.findIndex((id) => id === postId);
     if (i >= 0) {
       bookmarks.splice(i, 1);
@@ -186,9 +176,8 @@ export const getBookmarkedPosts = query({
     if (!user) {
       return [];
     }
-    const posts = await Promise.all(
-      user.bookmarks.map((id) => ctx.db.get(id)),
-    );
+    const marks = user.bookmarks ?? [];
+    const posts = await Promise.all(marks.map((id) => ctx.db.get(id)));
     const loaded = posts.filter((p): p is NonNullable<typeof p> => p !== null);
     return Promise.all(
       loaded.map(async (p) => ({

@@ -1,6 +1,4 @@
-export const AUTH_COOKIE = "bf_auth_token";
-
-/** Must match `issuer` in `convex/auth.config.ts` and JWT signing in `lib/jwt.ts`. */
+/** Canonical site URL — used for links and metadata. */
 export const SITE_URL =
   process.env.SITE_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 

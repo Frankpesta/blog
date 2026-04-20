@@ -8,11 +8,11 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAuthStore } from "@/stores/useAuthStore";
+import { useAuthActions } from "@convex-dev/auth/react";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const login = useAuthStore((s) => s.login);
+  const { signIn } = useAuthActions();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,33 +22,17 @@ export default function RegisterPage() {
     e.preventDefault();
     setBusy(true);
     try {
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+      await signIn("password", {
+        name,
+        email,
+        password,
+        flow: "signUp",
       });
-      const data = (await res.json()) as {
-        ok?: boolean;
-        user?: { id: string; email: string; name: string; role: "admin" | "user" };
-      };
-      if (!res.ok) {
-        toast.error("Registration failed");
-        return;
-      }
-      if (data.user) {
-        login({ ...data.user, id: data.user.id });
-      }
-      await useAuthStore.getState().hydrate();
-      if (!useAuthStore.getState().user && data.user) {
-        login({ ...data.user, id: data.user.id });
-        toast.error(
-          "Account created but session sync failed — check SITE_URL / NEXT_PUBLIC_SITE_URL on Vercel.",
-        );
-      } else {
-        toast.success("Account created");
-      }
+      toast.success("Account created");
       router.push("/");
       router.refresh();
+    } catch {
+      toast.error("Could not create account — try a different email or stronger password.");
     } finally {
       setBusy(false);
     }

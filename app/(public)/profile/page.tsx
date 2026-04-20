@@ -7,7 +7,6 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
-import { useAuthStore } from "@/stores/useAuthStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,47 +14,52 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PostCard } from "@/components/blog/PostCard";
 import type { Doc } from "@/convex/_generated/dataModel";
+import { useSessionUser } from "@/hooks/useSessionUser";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const hydrated = useAuthStore((s) => !s.isLoading);
-  const user = useAuthStore((s) => s.user);
-  const hydrate = useAuthStore((s) => s.hydrate);
+  const { user, isLoading } = useSessionUser();
   const updateProfile = useMutation(api.users.updateProfile);
-  const bookmarks = useQuery(api.users.getBookmarkedPosts);
-  const comments = useQuery(api.comments.listMine);
+  const bookmarks = useQuery(
+    api.users.getBookmarkedPosts,
+    user ? {} : "skip",
+  );
+  const comments = useQuery(api.comments.listMine, user ? {} : "skip");
 
   const [name, setName] = useState("");
   const [bio, setBio] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    void hydrate();
-  }, [hydrate]);
-
-  useEffect(() => {
-    if (hydrated && !user) {
+    if (!isLoading && !user) {
       router.replace("/login");
     }
     if (user) {
-      setName(user.name);
+      setName(user.name ?? "");
       setBio(user.bio ?? "");
     }
-  }, [user, hydrated, router]);
+  }, [user, isLoading, router]);
 
   async function saveProfile(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     try {
       await updateProfile({ name, bio });
-      await hydrate();
       toast.success("Profile saved");
     } finally {
       setSaving(false);
     }
   }
 
-  if (!hydrated || !user) {
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-24">
+        <Loader2 className="size-8 animate-spin text-[#F5A623]" />
+      </div>
+    );
+  }
+
+  if (!user) {
     return (
       <div className="flex justify-center py-24">
         <Loader2 className="size-8 animate-spin text-[#F5A623]" />
@@ -126,65 +130,15 @@ export default function ProfilePage() {
           ) : null}
         </TabsContent>
         <TabsContent value="security">
-          <ChangePasswordForm />
+          <div className="mt-6 max-w-md space-y-3 rounded-xl border border-white/10 bg-[#111827] p-6 text-sm text-zinc-400">
+            <p>
+              Passwords are handled by Convex Auth (hashed and stored securely). To change your
+              password, sign out and use the password reset flow when email delivery is configured in
+              your deployment.
+            </p>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
-  );
-}
-
-function ChangePasswordForm() {
-  const [current, setCurrent] = useState("");
-  const [next, setNext] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    try {
-      const res = await fetch("/api/auth/password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ current, next }),
-      });
-      if (!res.ok) {
-        toast.error("Could not update password");
-        return;
-      }
-      toast.success("Password updated");
-      setCurrent("");
-      setNext("");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <form onSubmit={onSubmit} className="mt-6 max-w-md space-y-4 rounded-xl border border-white/10 bg-[#111827] p-6">
-      <div>
-        <Label>Current password</Label>
-        <Input
-          type="password"
-          value={current}
-          onChange={(e) => setCurrent(e.target.value)}
-          className="mt-1 border-zinc-700 bg-[#0A0F1E]"
-          required
-        />
-      </div>
-      <div>
-        <Label>New password</Label>
-        <Input
-          type="password"
-          value={next}
-          onChange={(e) => setNext(e.target.value)}
-          className="mt-1 border-zinc-700 bg-[#0A0F1E]"
-          required
-          minLength={8}
-        />
-      </div>
-      <Button type="submit" disabled={busy} className="bg-[#F5A623] text-black">
-        {busy ? <Loader2 className="size-4 animate-spin" /> : "Update"}
-      </Button>
-    </form>
   );
 }

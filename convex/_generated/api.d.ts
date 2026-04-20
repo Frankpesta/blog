@@ -8,11 +8,12 @@
  * @module
  */
 
-import type * as authActions from "../authActions.js";
+import type * as auth from "../auth.js";
 import type * as categories from "../categories.js";
 import type * as comments from "../comments.js";
 import type * as crons from "../crons.js";
 import type * as files from "../files.js";
+import type * as http from "../http.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as notifications from "../notifications.js";
 import type * as posts from "../posts.js";
@@ -28,11 +29,12 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  authActions: typeof authActions;
+  auth: typeof auth;
   categories: typeof categories;
   comments: typeof comments;
   crons: typeof crons;
   files: typeof files;
+  http: typeof http;
   "lib/auth": typeof lib_auth;
   notifications: typeof notifications;
   posts: typeof posts;

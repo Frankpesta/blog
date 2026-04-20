@@ -7,14 +7,14 @@ import rehypeSanitize from "rehype-sanitize";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
-import { useAuthStore } from "@/stores/useAuthStore";
+import { useSessionUser } from "@/hooks/useSessionUser";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { Id } from "@/convex/_generated/dataModel";
 import { motion } from "framer-motion";
 
 export function PostComments({ postId }: { postId: Id<"posts"> }) {
-  const user = useAuthStore((s) => s.user);
+  const { user } = useSessionUser();
   const comments = useQuery(api.comments.listByPost, { postId });
   const create = useMutation(api.comments.create);
   const [text, setText] = useState("");

@@ -22,7 +22,8 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useAuthStore } from "@/stores/useAuthStore";
+import { useAuthActions } from "@convex-dev/auth/react";
+import { useSessionUser } from "@/hooks/useSessionUser";
 import { useUIStore } from "@/stores/useUIStore";
 import { BRAND } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -53,8 +54,8 @@ export function Navbar() {
   const { scrollY } = useScroll();
   const bg = useTransform(scrollY, [0, 80], ["rgba(10,15,30,0.6)", "rgba(10,15,30,0.92)"]);
   const pathname = usePathname();
-  const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
+  const { user, isLoading } = useSessionUser();
+  const { signOut } = useAuthActions();
   const toggleSearch = useUIStore((s) => s.toggleSearch);
 
   useEffect(() => {
@@ -69,10 +70,12 @@ export function Navbar() {
   }, [toggleSearch]);
 
   async function handleLogout() {
-    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-    logout();
+    await signOut();
     window.location.href = "/";
   }
+
+  const displayName = user?.name?.trim() || user?.email || "Account";
+  const initial = displayName.slice(0, 1).toUpperCase();
 
   return (
     <motion.header
@@ -114,15 +117,13 @@ export function Navbar() {
           >
             <Search className="size-5" />
           </Button>
-          {user ? (
+          {!isLoading && user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full" aria-label="Account menu">
                   <Avatar className="size-8">
-                    <AvatarImage src={user.avatarUrl} alt="" />
-                    <AvatarFallback>
-                      {user.name.slice(0, 1).toUpperCase()}
-                    </AvatarFallback>
+                    <AvatarImage src={user.avatarUrl ?? undefined} alt="" />
+                    <AvatarFallback>{initial}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
@@ -135,14 +136,14 @@ export function Navbar() {
                     <Link href="/admin">Admin</Link>
                   </DropdownMenuItem>
                 ) : null}
-                <DropdownMenuItem onClick={handleLogout}>Log out</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => void handleLogout()}>Log out</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          ) : (
+          ) : !isLoading ? (
             <Button asChild variant="outline" size="sm" className="hidden border-zinc-700 md:inline-flex">
               <Link href="/login">Log in</Link>
             </Button>
-          )}
+          ) : null}
           <Sheet>
             <SheetTrigger asChild className="md:hidden">
               <Button variant="ghost" size="icon" aria-label="Menu">
@@ -184,7 +185,7 @@ export function Navbar() {
                   ))}
                 </nav>
                 <div className="mt-8 rounded-xl border border-white/10 bg-[#111827]/80 p-4">
-                  {!user ? (
+                  {!user && !isLoading ? (
                     <SheetClose asChild>
                       <Link
                         href="/login"
@@ -194,7 +195,7 @@ export function Navbar() {
                         Log in
                       </Link>
                     </SheetClose>
-                  ) : (
+                  ) : user ? (
                     <div className="flex flex-col gap-2">
                       <SheetClose asChild>
                         <Link
@@ -222,6 +223,8 @@ export function Navbar() {
                         Log out
                       </button>
                     </div>
+                  ) : (
+                    <p className="text-center text-sm text-zinc-500">Loading…</p>
                   )}
                 </div>
               </div>

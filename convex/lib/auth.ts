@@ -1,3 +1,4 @@
+import { getAuthUserId } from "@convex-dev/auth/server";
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 
@@ -6,9 +7,7 @@ type ReadCtx = QueryCtx | MutationCtx;
 export async function getUserId(
   ctx: ReadCtx,
 ): Promise<Id<"users"> | null> {
-  const identity = await ctx.auth.getUserIdentity();
-  if (!identity) return null;
-  return identity.subject as Id<"users">;
+  return await getAuthUserId(ctx);
 }
 
 export async function requireUser(
@@ -25,12 +24,16 @@ export async function requireUser(
   return userId;
 }
 
+function effectiveRole(user: { role?: "admin" | "user" } | null): "admin" | "user" {
+  return user?.role ?? "user";
+}
+
 export async function requireAdmin(
   ctx: MutationCtx,
 ): Promise<Id<"users">> {
   const userId = await requireUser(ctx);
   const user = await ctx.db.get(userId);
-  if (!user || user.role !== "admin") {
+  if (!user || effectiveRole(user) !== "admin") {
     throw new Error("Forbidden");
   }
   return userId;
@@ -44,7 +47,7 @@ export async function requireAdminQuery(
     throw new Error("Unauthorized");
   }
   const user = await ctx.db.get(userId);
-  if (!user || user.role !== "admin") {
+  if (!user || effectiveRole(user) !== "admin") {
     throw new Error("Forbidden");
   }
   return userId;

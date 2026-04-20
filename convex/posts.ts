@@ -68,7 +68,7 @@ export const getPublishedBySlug = query({
     const author = authorDoc
       ? {
           id: authorDoc._id,
-          name: authorDoc.name,
+          name: authorDoc.name ?? "Anonymous",
           avatarUrl: authorDoc.avatarUrl,
           bio: authorDoc.bio,
         }

@@ -3,6 +3,7 @@ import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { AppProviders } from "@/components/providers";
+import { ConvexAuthNextjsServerProvider } from "@convex-dev/auth/nextjs/server";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -24,7 +25,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -40,7 +41,9 @@ export default function RootLayout({
       )}
     >
       <body className="flex min-h-full flex-col bg-[#0A0F1E] font-sans text-zinc-100">
-        <AppProviders>{children}</AppProviders>
+        <ConvexAuthNextjsServerProvider>
+          <AppProviders>{children}</AppProviders>
+        </ConvexAuthNextjsServerProvider>
       </body>
     </html>
   );

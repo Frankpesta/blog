@@ -1,18 +1,32 @@
+import { authTables } from "@convex-dev/auth/server";
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
+/** App profile fields merged onto Convex Auth `users` (see labs.convex.dev/auth/setup/schema). */
+const applicationUserFields = {
+  role: v.optional(v.union(v.literal("admin"), v.literal("user"))),
+  bio: v.optional(v.string()),
+  /** Prefer over `image` when set (legacy blog field). */
+  avatarUrl: v.optional(v.string()),
+  bookmarks: v.optional(v.array(v.id("posts"))),
+  createdAt: v.optional(v.number()),
+  isVerified: v.optional(v.boolean()),
+  /** Legacy bcrypt — unused after Convex Auth migration; optional for old rows. */
+  passwordHash: v.optional(v.string()),
+};
+
 export default defineSchema({
+  ...authTables,
   users: defineTable({
-    name: v.string(),
-    email: v.string(),
-    passwordHash: v.string(),
-    role: v.union(v.literal("admin"), v.literal("user")),
-    avatarUrl: v.optional(v.string()),
-    bio: v.optional(v.string()),
-    createdAt: v.number(),
-    isVerified: v.boolean(),
-    bookmarks: v.array(v.id("posts")),
-  }).index("by_email", ["email"]),
+    name: v.optional(v.string()),
+    image: v.optional(v.string()),
+    email: v.optional(v.string()),
+    emailVerificationTime: v.optional(v.number()),
+    phone: v.optional(v.string()),
+    phoneVerificationTime: v.optional(v.number()),
+    isAnonymous: v.optional(v.boolean()),
+    ...applicationUserFields,
+  }).index("email", ["email"]),
 
   categories: defineTable({
     name: v.string(),

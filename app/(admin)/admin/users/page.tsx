@@ -47,9 +47,9 @@ export default function AdminUsersPage() {
       <div>
         <h1 className="font-heading text-3xl font-bold text-white">Users</h1>
         <p className="mt-2 max-w-2xl text-sm text-zinc-400">
-          Admins can publish and manage posts. Promote trusted accounts so they can use the admin
-          area; they should use the same site URL you configured for{" "}
-          <code className="text-[#F5A623]">SITE_URL</code> so their session matches Convex auth.
+          Admins can publish and manage posts. This app uses Convex Auth; sign-in is handled on the
+          Convex side. If something looks out of sync, ensure <code className="text-[#F5A623]">CONVEX_SITE_URL</code> on
+          your deployment matches the site people use in the browser.
         </p>
       </div>
 
@@ -62,10 +62,8 @@ export default function AdminUsersPage() {
         <div className="rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-4 text-sm text-amber-100/95">
           <p className="font-medium text-amber-50">Convex doesn’t see a logged-in session.</p>
           <p className="mt-2 text-amber-100/80">
-            Ensure <code className="text-amber-200">SITE_URL</code> matches your browser origin on both Vercel and Convex;
-            use <code className="text-amber-200">CONVEX_AUTH_JWKS_DATA_URI</code> from{" "}
-            <code className="text-amber-200">npm run convex:jwks-uri</code> if JWKS isn’t public. Add matching origins to{" "}
-            <code className="text-amber-200">JWT_EXTRA_ISSUERS</code> if you use www and apex. Hard refresh, sign out, sign in.
+            Sign in again, or check that <code className="text-amber-200">CONVEX_SITE_URL</code> in the Convex dashboard
+            matches the exact origin you use in the browser. Hard refresh after env changes.
           </p>
           <Button asChild className="mt-4 bg-[#F5A623] text-black hover:bg-[#e69b1f]">
             <Link href="/login">Go to login</Link>
@@ -82,10 +80,8 @@ export default function AdminUsersPage() {
             <>
               <p className="font-medium text-amber-50">Convex doesn’t see a logged-in session.</p>
               <p className="mt-2 text-amber-100/80">
-                Ensure <code className="text-amber-200">SITE_URL</code> matches your browser origin on both Vercel and
-                Convex; use <code className="text-amber-200">CONVEX_AUTH_JWKS_DATA_URI</code> from{" "}
-                <code className="text-amber-200">npm run convex:jwks-uri</code> if JWKS isn’t public. Hard refresh, sign out,
-                sign in.
+                Try signing out and back in. If it persists, check <code className="text-amber-200">CONVEX_SITE_URL</code> in
+                the Convex deployment and that you are not mixing www and non-www without updating that value.
               </p>
               <Button asChild className="mt-4 bg-[#F5A623] text-black hover:bg-[#e69b1f]">
                 <Link href="/login">Go to login</Link>
@@ -95,13 +91,9 @@ export default function AdminUsersPage() {
             <>
               <p className="font-medium text-amber-50">Convex doesn’t treat this account as an admin.</p>
               <p className="mt-2 text-amber-100/80">
-                Next.js may still let you open <code className="text-amber-200">/admin</code> from your database role,
-                but Convex functions read your JWT + DB user from{" "}
-                <code className="text-amber-200">ctx.auth</code>. Fix by aligning{" "}
-                <code className="text-amber-200">SITE_URL</code> in{" "}
-                <code className="text-amber-200">.env.local</code> with{" "}
-                <code className="text-amber-200">convex/auth.config.ts</code> (same origin as the URL in the browser), restart{" "}
-                <code className="text-amber-200">npx convex dev</code>, then hard-refresh and log in again so new admins sync.
+                Middleware lets you through because your Convex profile has{" "}
+                <code className="text-amber-200">role: &quot;admin&quot;</code>, but this query could not confirm admin. Sign
+                out and in, or have another admin verify your account in the database.
               </p>
             </>
           )}

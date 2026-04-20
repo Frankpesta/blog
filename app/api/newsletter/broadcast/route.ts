@@ -1,30 +1,26 @@
 import { ConvexHttpClient } from "convex/browser";
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { z } from "zod";
 import type { Id } from "@/convex/_generated/dataModel";
 import { api } from "@/convex/_generated/api";
-import { AUTH_COOKIE } from "@/lib/constants";
-import { verifyAccessToken } from "@/lib/jwt";
+import { convexAuthNextjsToken } from "@convex-dev/auth/nextjs/server";
 
 const bodySchema = z.object({
   postId: z.string(),
 });
 
 export async function POST(req: Request) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(AUTH_COOKIE)?.value;
+  const token = await convexAuthNextjsToken();
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  let payload;
-  try {
-    payload = await verifyAccessToken(token);
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  if (payload.role !== "admin") {
+
+  const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+  convex.setAuth(token);
+
+  const isAdmin = await convex.query(api.users.checkIsAdmin, {});
+  if (!isAdmin) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -35,8 +31,6 @@ export async function POST(req: Request) {
   }
 
   const postId = parsed.data.postId as Id<"posts">;
-  const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
-  convex.setAuth(token);
 
   const post = await convex.query(api.posts.getById, { id: postId });
   if (!post) {
