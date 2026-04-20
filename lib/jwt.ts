@@ -3,12 +3,22 @@ import { SITE_URL } from "@/lib/constants";
 
 const AUDIENCE = "benjafamily-blog";
 
+function norm(s: string | undefined): string | undefined {
+  const t = s?.trim();
+  return t ? t.replace(/\/$/, "") : undefined;
+}
+
 /** Accept tokens minted for any of these issuers (must match Convex auth providers). */
 export const JWT_ISSUERS: string[] = Array.from(
   new Set(
     [
-      SITE_URL.replace(/\/$/, ""),
-      process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, ""),
+      norm(SITE_URL),
+      norm(process.env.SITE_URL),
+      norm(process.env.NEXT_PUBLIC_SITE_URL),
+      ...(process.env.JWT_EXTRA_ISSUERS ?? "")
+        .split(",")
+        .map((x) => norm(x.trim()))
+        .filter(Boolean),
       "http://localhost:3000",
       "http://127.0.0.1:3000",
     ].filter((x): x is string => Boolean(x)),

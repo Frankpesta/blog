@@ -38,7 +38,15 @@ export default function LoginPage() {
         login({ ...data.user, id: data.user.id });
       }
       await useAuthStore.getState().hydrate();
-      toast.success("Welcome back");
+      // If JWT verification fails (issuer / SITE_URL mismatch), hydrate clears session — restore optimistic login.
+      if (!useAuthStore.getState().user && data.user) {
+        login({ ...data.user, id: data.user.id });
+        toast.error(
+          "Session verification failed. In Vercel env set SITE_URL and NEXT_PUBLIC_SITE_URL to your exact site origin (https://…, no trailing slash), match Convex SITE_URL, then redeploy.",
+        );
+      } else {
+        toast.success("Welcome back");
+      }
       router.push("/");
       router.refresh();
     } finally {

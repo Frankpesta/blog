@@ -39,7 +39,14 @@ export default function RegisterPage() {
         login({ ...data.user, id: data.user.id });
       }
       await useAuthStore.getState().hydrate();
-      toast.success("Account created");
+      if (!useAuthStore.getState().user && data.user) {
+        login({ ...data.user, id: data.user.id });
+        toast.error(
+          "Account created but session sync failed — check SITE_URL / NEXT_PUBLIC_SITE_URL on Vercel.",
+        );
+      } else {
+        toast.success("Account created");
+      }
       router.push("/");
       router.refresh();
     } finally {
