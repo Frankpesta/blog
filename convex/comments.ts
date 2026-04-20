@@ -51,11 +51,7 @@ export const listMine = query({
 export const listAllForAdmin = query({
   args: { limit: v.number() },
   handler: async (ctx, { limit }) => {
-    try {
-      await requireAdminQuery(ctx);
-    } catch {
-      return [];
-    }
+    await requireAdminQuery(ctx);
     return await ctx.db.query("comments").order("desc").take(Math.min(limit, 300));
   },
 });

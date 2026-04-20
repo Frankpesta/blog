@@ -24,6 +24,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { slugify } from "@/lib/slug";
+import { useConvexSessionReady } from "@/hooks/useConvexSessionReady";
 
 function stripHtmlWordCount(html: string) {
   const text = html.replace(/<[^>]+>/g, " ").trim();
@@ -40,10 +41,14 @@ export function PostForm({
 }) {
   const router = useRouter();
   const convex = useConvex();
-  const categories = useQuery(api.categories.listForAdmin);
+  const sessionReady = useConvexSessionReady();
+  const categories = useQuery(
+    api.categories.listForAdmin,
+    sessionReady ? {} : "skip",
+  );
   const existing = useQuery(
     api.posts.getByIdForEditor,
-    initialPostId ? { id: initialPostId } : "skip",
+    sessionReady && initialPostId ? { id: initialPostId } : "skip",
   );
 
   const createPost = useMutation(api.posts.createPost);

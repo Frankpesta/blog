@@ -3,9 +3,14 @@
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
+import { useConvexSessionReady } from "@/hooks/useConvexSessionReady";
 
 export default function AdminCommentsPage() {
-  const rows = useQuery(api.comments.listAllForAdmin, { limit: 100 });
+  const sessionReady = useConvexSessionReady();
+  const rows = useQuery(
+    api.comments.listAllForAdmin,
+    sessionReady ? { limit: 100 } : "skip",
+  );
   const moderate = useMutation(api.comments.moderate);
 
   return (

@@ -84,11 +84,7 @@ export const listActiveForBroadcast = query({
 export const listForAdmin = query({
   args: { limit: v.number() },
   handler: async (ctx, { limit }) => {
-    try {
-      await requireAdminQuery(ctx);
-    } catch {
-      return [];
-    }
+    await requireAdminQuery(ctx);
     return await ctx.db
       .query("subscribers")
       .order("desc")

@@ -9,9 +9,15 @@ import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import type { Id } from "@/convex/_generated/dataModel";
 import { cn } from "@/lib/utils";
+import { useConvexSessionReady } from "@/hooks/useConvexSessionReady";
 
 export default function AdminUsersPage() {
-  const result = useQuery(api.users.listForAdmin, { limit: 200 });
+  const sessionReady = useConvexSessionReady();
+  /** Avoid firing before Convex `setAuth` finishes — first unauthenticated result was sticky on this page. */
+  const result = useQuery(
+    api.users.listForAdmin,
+    sessionReady ? { limit: 200 } : "skip",
+  );
   const setRole = useMutation(api.users.setRole);
   const [pendingId, setPendingId] = useState<string | null>(null);
 
@@ -46,10 +52,10 @@ export default function AdminUsersPage() {
         </p>
       </div>
 
-      {result === undefined ? (
+      {!sessionReady || result === undefined ? (
         <div className="flex items-center gap-2 text-zinc-400">
           <Loader2 className="size-5 animate-spin" />
-          Loading users…
+          {!sessionReady ? "Connecting session…" : "Loading users…"}
         </div>
       ) : !result.ok ? (
         <div className="rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-4 text-sm text-amber-100/95">
@@ -57,10 +63,10 @@ export default function AdminUsersPage() {
             <>
               <p className="font-medium text-amber-50">Convex doesn’t see a logged-in session.</p>
               <p className="mt-2 text-amber-100/80">
-                Run <code className="text-amber-200">npm run convex:jwks-uri</code>, add{" "}
-                <code className="text-amber-200">CONVEX_AUTH_JWKS_DATA_URI</code> +{" "}
-                <code className="text-amber-200">SITE_URL</code> in the Convex dashboard (localhost JWKS is not reachable
-                from Convex Cloud). Restart <code className="text-amber-200">npx convex dev</code>, then sign out and in.
+                Ensure <code className="text-amber-200">SITE_URL</code> matches your browser origin on both Vercel and
+                Convex; use <code className="text-amber-200">CONVEX_AUTH_JWKS_DATA_URI</code> from{" "}
+                <code className="text-amber-200">npm run convex:jwks-uri</code> if JWKS isn’t public. Hard refresh, sign out,
+                sign in.
               </p>
               <Button asChild className="mt-4 bg-[#F5A623] text-black hover:bg-[#e69b1f]">
                 <Link href="/login">Go to login</Link>

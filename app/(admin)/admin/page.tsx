@@ -5,9 +5,11 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useConvexSessionReady } from "@/hooks/useConvexSessionReady";
 
 export default function AdminDashboardPage() {
-  const stats = useQuery(api.stats.adminDashboard);
+  const sessionReady = useConvexSessionReady();
+  const stats = useQuery(api.stats.adminDashboard, sessionReady ? {} : "skip");
 
   return (
     <div className="space-y-8">

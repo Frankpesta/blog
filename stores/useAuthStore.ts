@@ -41,7 +41,10 @@ export const useAuthStore = create<AuthState>((set) => ({
         set({ user: null, isAuthenticated: false, isLoading: false });
       }
     } catch {
-      set({ user: null, isAuthenticated: false, isLoading: false });
+      set((state) => ({
+        ...state,
+        isLoading: false,
+      }));
     }
   },
 }));

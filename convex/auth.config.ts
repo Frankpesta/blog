@@ -15,8 +15,18 @@ const dataUri = process.env.CONVEX_AUTH_JWKS_DATA_URI?.trim();
 const jwks =
   dataUri && dataUri.length > 0 ? dataUri : `${siteUrl}/api/auth/jwks`;
 
+const extraIssuers = (process.env.JWT_EXTRA_ISSUERS ?? "")
+  .split(",")
+  .map((s) => s.trim().replace(/\/$/, ""))
+  .filter(Boolean);
+
 const issuers = Array.from(
-  new Set([siteUrl, "http://localhost:3000", "http://127.0.0.1:3000"]),
+  new Set([
+    siteUrl,
+    ...extraIssuers,
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+  ]),
 );
 
 export default {

@@ -265,11 +265,7 @@ export const listRelated = query({
 export const listForAdmin = query({
   args: { status: v.optional(v.string()), limit: v.number() },
   handler: async (ctx, args) => {
-    try {
-      await requireAdminQuery(ctx);
-    } catch {
-      return [];
-    }
+    await requireAdminQuery(ctx);
     let q = ctx.db.query("posts").order("desc");
     const posts = await q.take(Math.min(args.limit, 200));
     if (args.status && args.status !== "all") {

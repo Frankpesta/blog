@@ -2,9 +2,14 @@
 
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { useConvexSessionReady } from "@/hooks/useConvexSessionReady";
 
 export default function AdminSubscribersPage() {
-  const subs = useQuery(api.subscribers.listForAdmin, { limit: 500 });
+  const sessionReady = useConvexSessionReady();
+  const subs = useQuery(
+    api.subscribers.listForAdmin,
+    sessionReady ? { limit: 500 } : "skip",
+  );
 
   function downloadCsv() {
     const lines = [["email", "subscribedAt", "isActive"].join(",")];

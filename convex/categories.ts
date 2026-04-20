@@ -90,11 +90,7 @@ export const remove = mutation({
 export const listForAdmin = query({
   args: {},
   handler: async (ctx) => {
-    try {
-      await requireAdminQuery(ctx);
-    } catch {
-      return [];
-    }
+    await requireAdminQuery(ctx);
     return await ctx.db.query("categories").order("asc").take(200);
   },
 });

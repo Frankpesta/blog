@@ -17,13 +17,20 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAdminStore } from "@/stores/useAdminStore";
 import { toast } from "sonner";
+import { useConvexSessionReady } from "@/hooks/useConvexSessionReady";
 
 export default function AdminPostsPage() {
+  const sessionReady = useConvexSessionReady();
   const filter = useAdminStore((s) => s.postStatusFilter);
-  const posts = useQuery(api.posts.listForAdmin, {
-    status: filter === "all" ? undefined : filter,
-    limit: 100,
-  });
+  const posts = useQuery(
+    api.posts.listForAdmin,
+    sessionReady
+      ? {
+          status: filter === "all" ? undefined : filter,
+          limit: 100,
+        }
+      : "skip",
+  );
   const bulkDelete = useMutation(api.posts.bulkDelete);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
@@ -154,7 +161,7 @@ export default function AdminPostsPage() {
           </TableBody>
         </Table>
       </div>
-      {!posts?.length ? (
+      {sessionReady && posts !== undefined && !posts.length ? (
         <p className="text-zinc-500">
           No posts yet. Seed categories in Convex or create a new post.
         </p>

@@ -41,7 +41,7 @@ export async function requireAdminQuery(
 ): Promise<Id<"users">> {
   const userId = await getUserId(ctx);
   if (!userId) {
-    throw new Error("Forbidden");
+    throw new Error("Unauthorized");
   }
   const user = await ctx.db.get(userId);
   if (!user || user.role !== "admin") {

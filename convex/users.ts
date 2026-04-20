@@ -3,6 +3,7 @@ import { internalQuery, mutation, query } from "./_generated/server";
 import {
   getUserId,
   requireAdmin,
+  requireAdminQuery,
   requireUser,
 } from "./lib/auth";
 import type { Id } from "./_generated/dataModel";
@@ -134,13 +135,13 @@ export const setRole = mutation({
 export const listForAdmin = query({
   args: { limit: v.number() },
   handler: async (ctx, { limit }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      return { ok: false as const, reason: "not_authenticated" as const };
-    }
-    const userId = identity.subject as Id<"users">;
-    const me = await ctx.db.get(userId);
-    if (!me || me.role !== "admin") {
+    try {
+      await requireAdminQuery(ctx);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "";
+      if (msg === "Unauthorized") {
+        return { ok: false as const, reason: "not_authenticated" as const };
+      }
       return { ok: false as const, reason: "not_admin" as const };
     }
     const rows = await ctx.db
