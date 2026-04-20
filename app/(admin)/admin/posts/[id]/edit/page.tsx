@@ -2,20 +2,24 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import type { Id } from "@/convex/_generated/dataModel";
+import { PostForm } from "@/components/admin/PostForm";
 
 export default function EditPostPage() {
-  const id = useParams().id as string;
+  const id = useParams().id as Id<"posts">;
+
   return (
-    <div className="max-w-2xl space-y-4">
-      <h1 className="font-heading text-3xl font-bold text-white">Edit post</h1>
-      <p className="font-mono text-sm text-zinc-500">{id}</p>
-      <p className="text-zinc-400">
-        Load post via <code className="text-[#F5A623]">posts.getById</code>, bind
-        Tiptap + publish updates through <code className="text-[#F5A623]">posts.updatePost</code>.
-      </p>
-      <Link href="/admin/posts" className="text-[#F5A623] hover:underline">
-        ← Back to posts
-      </Link>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1 className="font-heading text-3xl font-bold text-white">Edit post</h1>
+        <Link
+          href="/admin/posts"
+          className="text-sm text-[#F5A623] hover:underline"
+        >
+          ← Back to posts
+        </Link>
+      </div>
+      <PostForm postId={id} />
     </div>
   );
 }

@@ -62,6 +62,25 @@ export const listActiveEmails = query({
   },
 });
 
+/** Admin-only: email + token for unsubscribe links in newsletter sends. */
+export const listActiveForBroadcast = query({
+  args: {},
+  handler: async (ctx) => {
+    try {
+      await requireAdminQuery(ctx);
+    } catch {
+      return [];
+    }
+    const rows = await ctx.db.query("subscribers").take(500);
+    return rows
+      .filter((s) => s.isActive)
+      .map((s) => ({
+        email: s.email,
+        unsubscribeToken: s.unsubscribeToken,
+      }));
+  },
+});
+
 export const listForAdmin = query({
   args: { limit: v.number() },
   handler: async (ctx, { limit }) => {

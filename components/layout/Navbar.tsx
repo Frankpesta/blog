@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect } from "react";
 import { Menu, Search, User } from "lucide-react";
@@ -12,7 +13,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useUIStore } from "@/stores/useUIStore";
@@ -25,6 +33,21 @@ const nav = [
   { href: "/newsletter", label: "Newsletter" },
   { href: "/about", label: "About" },
 ];
+
+function BrandLogo({ className }: { className?: string }) {
+  return (
+    <span className={cn("relative inline-flex size-9 shrink-0 items-center justify-center", className)}>
+      <Image
+        src="/logo.png"
+        alt=""
+        width={36}
+        height={36}
+        className="object-contain"
+        priority
+      />
+    </span>
+  );
+}
 
 export function Navbar() {
   const { scrollY } = useScroll();
@@ -58,12 +81,13 @@ export function Navbar() {
         "sticky top-0 z-50 border-b border-white/10 backdrop-blur-md",
       )}
     >
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2 font-heading text-lg font-semibold tracking-tight text-white">
-          <span className="rounded-md bg-[#F5A623]/15 px-2 py-1 text-[#F5A623]">
-            BF
-          </span>
-          {BRAND.name}
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-5">
+        <Link
+          href="/"
+          className="flex min-w-0 items-center gap-2.5 font-heading text-base font-semibold tracking-tight text-white sm:text-lg"
+        >
+          <BrandLogo />
+          <span className="truncate">{BRAND.name}</span>
         </Link>
         <nav className="hidden items-center gap-8 md:flex">
           {nav.map((n) => (
@@ -125,18 +149,81 @@ export function Navbar() {
                 <Menu className="size-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="border-zinc-800 bg-[#0A0F1E] text-zinc-100">
-              <div className="mt-8 flex flex-col gap-4">
-                {nav.map((n) => (
-                  <Link key={n.href} href={n.href} className="text-lg">
-                    {n.label}
-                  </Link>
-                ))}
-                {!user ? (
-                  <Link href="/login" className="flex items-center gap-2 text-lg">
-                    <User className="size-5" /> Log in
-                  </Link>
-                ) : null}
+            <SheetContent
+              side="right"
+              className="w-full gap-0 border-l border-white/10 bg-[#0A0F1E] p-0 text-zinc-100 sm:max-w-sm"
+            >
+              <div className="px-6 pb-6 pt-14">
+                <SheetHeader className="space-y-4 border-b border-white/10 p-0 pb-6 text-left">
+                  <SheetTitle className="sr-only">Navigation menu</SheetTitle>
+                  <SheetClose asChild>
+                    <Link href="/" className="flex items-center gap-3 text-left">
+                      <BrandLogo />
+                      <span className="font-heading text-lg font-semibold text-white">
+                        {BRAND.name}
+                      </span>
+                    </Link>
+                  </SheetClose>
+                  <p className="text-xs leading-relaxed text-zinc-500">
+                    Research, tools, and commentary from BenjaFamily Labs.
+                  </p>
+                </SheetHeader>
+                <nav className="mt-6 flex flex-col gap-0" aria-label="Main">
+                  {nav.map((n) => (
+                    <SheetClose key={n.href} asChild>
+                      <Link
+                        href={n.href}
+                        className={cn(
+                          "border-b border-white/6 py-4 text-base font-medium transition first:pt-0 hover:text-[#F5A623]",
+                          pathname === n.href ? "text-[#F5A623]" : "text-zinc-200",
+                        )}
+                      >
+                        {n.label}
+                      </Link>
+                    </SheetClose>
+                  ))}
+                </nav>
+                <div className="mt-8 rounded-xl border border-white/10 bg-[#111827]/80 p-4">
+                  {!user ? (
+                    <SheetClose asChild>
+                      <Link
+                        href="/login"
+                        className="flex items-center justify-center gap-2 rounded-lg bg-[#F5A623] px-4 py-3 text-sm font-semibold text-black transition hover:bg-[#e69b1f]"
+                      >
+                        <User className="size-4" />
+                        Log in
+                      </Link>
+                    </SheetClose>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <SheetClose asChild>
+                        <Link
+                          href="/profile"
+                          className="rounded-lg border border-white/10 px-4 py-2.5 text-center text-sm text-zinc-200 hover:border-[#F5A623]/40 hover:text-[#F5A623]"
+                        >
+                          Profile
+                        </Link>
+                      </SheetClose>
+                      {user.role === "admin" ? (
+                        <SheetClose asChild>
+                          <Link
+                            href="/admin"
+                            className="rounded-lg border border-white/10 px-4 py-2.5 text-center text-sm text-zinc-200 hover:border-[#F5A623]/40 hover:text-[#F5A623]"
+                          >
+                            Admin
+                          </Link>
+                        </SheetClose>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="rounded-lg border border-red-500/30 px-4 py-2.5 text-sm text-red-300 hover:bg-red-500/10"
+                        onClick={() => void handleLogout()}
+                      >
+                        Log out
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </SheetContent>
           </Sheet>

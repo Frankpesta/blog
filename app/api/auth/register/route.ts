@@ -5,6 +5,7 @@ import { z } from "zod";
 import { api } from "@/convex/_generated/api";
 import { AUTH_COOKIE } from "@/lib/constants";
 import { signAccessToken } from "@/lib/jwt";
+import { getRequestIssuer } from "@/lib/request-issuer";
 
 const schema = z.object({
   name: z.string().min(1),
@@ -27,12 +28,15 @@ export async function POST(req: Request) {
       email,
       passwordHash,
     });
-    const token = await signAccessToken({
-      sub: userId,
-      email: email.toLowerCase().trim(),
-      name,
-      role: "user",
-    });
+    const token = await signAccessToken(
+      {
+        sub: userId,
+        email: email.toLowerCase().trim(),
+        name,
+        role: "user",
+      },
+      getRequestIssuer(req),
+    );
     const res = NextResponse.json({
       ok: true,
       user: { id: userId, email: email.toLowerCase().trim(), name, role: "user" },

@@ -7,13 +7,18 @@ import { motion, useScroll, useSpring } from "framer-motion";
 import { useMutation, usePreloadedQuery, useQuery } from "convex/react";
 import type { Preloaded } from "convex/react";
 import { api as convexApi } from "@/convex/_generated/api";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { usePostStore } from "@/stores/usePostStore";
 import type { Doc } from "@/convex/_generated/dataModel";
 import { PostComments } from "@/components/blog/PostComments";
+import { PostBanner } from "@/components/blog/PostBanner";
+import {
+  buildTocFromHtml,
+  TableOfContents,
+} from "@/components/blog/TableOfContents";
 
 type RelatedPost = Doc<"posts"> & { coverUrl: string | null };
 
@@ -98,6 +103,50 @@ export function PostClient({
     return DOMPurify.sanitize(post.content);
   }, [post]);
 
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const tocItems = useMemo(() => buildTocFromHtml(html), [html]);
+  const [activeToc, setActiveToc] = useState<string | null>(null);
+  const [shareUrl, setShareUrl] = useState("");
+
+  useEffect(() => {
+    setShareUrl(window.location.href);
+  }, []);
+
+  useLayoutEffect(() => {
+    const el = bodyRef.current;
+    if (!el) {
+      return;
+    }
+    el.querySelectorAll("h2, h3").forEach((h, i) => {
+      h.id = `section-${i}`;
+    });
+  }, [html]);
+
+  useEffect(() => {
+    if (tocItems.length === 0) {
+      return;
+    }
+    const onScroll = () => {
+      const el = bodyRef.current;
+      if (!el) {
+        return;
+      }
+      const headings = [...el.querySelectorAll("h2, h3")];
+      let current: string | null = null;
+      const offset = 120;
+      for (const h of headings) {
+        const r = h.getBoundingClientRect();
+        if (r.top <= offset) {
+          current = h.id;
+        }
+      }
+      setActiveToc(current ?? headings[0]?.id ?? null);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [html, tocItems.length]);
+
   async function react(type: "like" | "love" | "fire" | "rocket") {
     if (!post) {
       return;
@@ -155,60 +204,60 @@ export function PostClient({
         </div>
       ) : null}
 
-      <header className="relative">
-        <div className="relative aspect-[21/9] max-h-[420px] w-full overflow-hidden bg-zinc-900">
-          {post.coverUrl ? (
-            <Image
-              src={post.coverUrl}
-              alt=""
-              fill
-              priority
-              className="object-cover"
-              sizes="100vw"
-            />
-          ) : null}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0A0F1E] via-[#0A0F1E]/70 to-transparent" />
-          <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10">
-            <div className="mx-auto max-w-4xl">
-              {post.category ? (
-                <span className="rounded-full bg-black/50 px-3 py-1 text-xs font-medium text-[#F5A623] backdrop-blur">
-                  {post.category.icon} {post.category.name}
-                </span>
-              ) : null}
-              <h1 className="mt-4 font-heading text-3xl font-bold text-white md:text-5xl">
-                {post.title}
-              </h1>
-              <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-zinc-300">
-                {post.author ? (
-                  <div className="flex items-center gap-2">
-                    {post.author.avatarUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={post.author.avatarUrl}
-                        alt=""
-                        width={40}
-                        height={40}
-                        className="rounded-full"
-                      />
-                    ) : null}
-                    <span>{post.author.name}</span>
-                  </div>
-                ) : null}
-                <span>
-                  {post.publishedAt
-                    ? new Date(post.publishedAt).toLocaleDateString()
-                    : ""}
-                </span>
-                <span>{post.readingTime} min read</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+      <PostBanner
+        title={post.title}
+        excerpt={post.excerpt}
+        coverUrl={post.coverUrl}
+        category={post.category}
+        author={post.author}
+        publishedAt={post.publishedAt}
+        readingTime={post.readingTime}
+      />
 
-      <article className="mx-auto max-w-4xl px-4 py-10 prose prose-invert prose-headings:font-heading prose-a:text-[#F5A623]">
-        <div dangerouslySetInnerHTML={{ __html: html }} />
-      </article>
+      <div className="mx-auto max-w-6xl px-4 py-10">
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-start">
+          <div>
+            <article className="prose prose-invert max-w-none prose-headings:font-heading prose-a:text-[#F5A623] prose-img:mx-auto prose-img:my-8 prose-img:max-w-full prose-img:rounded-xl prose-img:border prose-img:border-white/10 prose-img:shadow-2xl prose-img:shadow-black/50 prose-figure:my-10 prose-figcaption:text-center prose-figcaption:text-sm prose-figcaption:text-zinc-500">
+              <div
+                ref={bodyRef}
+                dangerouslySetInnerHTML={{ __html: html }}
+              />
+            </article>
+
+            {post.author ? (
+              <div className="mt-12 rounded-2xl border border-white/10 bg-[#111827] p-6">
+                <p className="text-xs font-medium uppercase tracking-wide text-[#F5A623]">
+                  Author
+                </p>
+                <div className="mt-3 flex gap-4">
+                  {post.author.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={post.author.avatarUrl}
+                      alt=""
+                      className="size-16 rounded-full object-cover"
+                    />
+                  ) : null}
+                  <div>
+                    <p className="font-heading text-lg font-semibold text-white">
+                      {post.author.name}
+                    </p>
+                    {post.author.bio ? (
+                      <p className="mt-1 text-sm text-zinc-400">{post.author.bio}</p>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          <aside className="hidden lg:block">
+            <div className="sticky top-28">
+              <TableOfContents items={tocItems} activeId={activeToc} />
+            </div>
+          </aside>
+        </div>
+      </div>
 
       <PostComments postId={post._id} />
 
@@ -248,7 +297,33 @@ export function PostClient({
                 toast.success("Link copied");
               }}
             >
-              Share
+              Copy link
+            </Button>
+            <Button variant="outline" size="sm" asChild disabled={!shareUrl}>
+              <a
+                href={
+                  shareUrl
+                    ? `https://twitter.com/intent/tweet?text=${encodeURIComponent(post.title)}&url=${encodeURIComponent(shareUrl)}`
+                    : "#"
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                X
+              </a>
+            </Button>
+            <Button variant="outline" size="sm" asChild disabled={!shareUrl}>
+              <a
+                href={
+                  shareUrl
+                    ? `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(post.title)}`
+                    : "#"
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Telegram
+              </a>
             </Button>
           </div>
         </div>

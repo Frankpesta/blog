@@ -1,17 +1,30 @@
 import type { AuthConfig } from "convex/server";
 
 /**
- * Update `issuer` and `jwks` to your public site URL in production.
- * The Next app must sign JWTs with the same `iss` (see `lib/jwt.ts` and `SITE_URL` in `.env.local`).
+ * Every distinct JWT `iss` you mint (see `signAccessToken` + `getRequestIssuer`) needs a
+ * matching provider here, with the same `jwks` / `CONVEX_AUTH_JWKS_DATA_URI`.
  */
+const siteUrl = (
+  process.env.SITE_URL ??
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  "http://localhost:3000"
+).replace(/\/$/, "");
+
+const dataUri = process.env.CONVEX_AUTH_JWKS_DATA_URI?.trim();
+
+const jwks =
+  dataUri && dataUri.length > 0 ? dataUri : `${siteUrl}/api/auth/jwks`;
+
+const issuers = Array.from(
+  new Set([siteUrl, "http://localhost:3000", "http://127.0.0.1:3000"]),
+);
+
 export default {
-  providers: [
-    {
-      type: "customJwt",
-      issuer: "http://localhost:3000",
-      jwks: "http://localhost:3000/api/auth/jwks",
-      algorithm: "RS256",
-      applicationID: "benjafamily-blog",
-    },
-  ],
+  providers: issuers.map((issuer) => ({
+    type: "customJwt" as const,
+    issuer,
+    jwks,
+    algorithm: "RS256" as const,
+    applicationID: "benjafamily-blog",
+  })),
 } satisfies AuthConfig;

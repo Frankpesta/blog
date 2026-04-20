@@ -1,29 +1,44 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { AUTH_COOKIE } from "@/lib/constants";
-import { verifyAccessToken } from "@/lib/jwt";
 
+/**
+ * Admin gating uses GET /api/auth/verify-admin (Convex `users.role`) so it stays
+ * in sync when a user is promoted in the dashboard; the session JWT still
+ * encodes `role` at login time and is not the source of truth here.
+ */
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   if (!path.startsWith("/admin")) {
     return NextResponse.next();
   }
-  const token = request.cookies.get(AUTH_COOKIE)?.value;
-  if (!token) {
+
+  const checkUrl = request.nextUrl.clone();
+  checkUrl.pathname = "/api/auth/verify-admin";
+  checkUrl.search = "";
+
+  const res = await fetch(checkUrl, {
+    headers: {
+      cookie: request.headers.get("cookie") ?? "",
+    },
+    cache: "no-store",
+  });
+
+  let body: { admin?: boolean } = {};
+  try {
+    body = (await res.json()) as { admin?: boolean };
+  } catch {
+    /* empty */
+  }
+
+  if (res.status === 401) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
-  try {
-    const payload = await verifyAccessToken(token);
-    const role = payload.role as string | undefined;
-    if (role !== "admin") {
-      return NextResponse.redirect(new URL("/", request.url));
-    }
-  } catch {
-    return NextResponse.redirect(new URL("/login", request.url));
+  if (res.status === 403 || !body.admin) {
+    return NextResponse.redirect(new URL("/", request.url));
   }
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin", "/admin/:path*"],
 };

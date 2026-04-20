@@ -3,7 +3,6 @@ import { internalQuery, mutation, query } from "./_generated/server";
 import {
   getUserId,
   requireAdmin,
-  requireAdminQuery,
   requireUser,
 } from "./lib/auth";
 import type { Id } from "./_generated/dataModel";
@@ -119,6 +118,14 @@ export const setRole = mutation({
     if (userId === self) {
       throw new Error("Cannot change your own role");
     }
+    if (role === "user") {
+      const everyone = await ctx.db.query("users").collect();
+      const admins = everyone.filter((u) => u.role === "admin");
+      const target = everyone.find((u) => u._id === userId);
+      if (target?.role === "admin" && admins.length <= 1) {
+        throw new Error("Cannot remove the last admin");
+      }
+    }
     await ctx.db.patch(userId, { role });
     return null;
   },
@@ -127,13 +134,23 @@ export const setRole = mutation({
 export const listForAdmin = query({
   args: { limit: v.number() },
   handler: async (ctx, { limit }) => {
-    try {
-      await requireAdminQuery(ctx);
-    } catch {
-      return [];
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return { ok: false as const, reason: "not_authenticated" as const };
     }
-    const users = await ctx.db.query("users").order("desc").take(Math.min(limit, 200));
-    return users.map(({ passwordHash: _p, ...u }) => u);
+    const userId = identity.subject as Id<"users">;
+    const me = await ctx.db.get(userId);
+    if (!me || me.role !== "admin") {
+      return { ok: false as const, reason: "not_admin" as const };
+    }
+    const rows = await ctx.db
+      .query("users")
+      .order("desc")
+      .take(Math.min(limit, 200));
+    return {
+      ok: true as const,
+      users: rows.map(({ passwordHash: _p, ...u }) => u),
+    };
   },
 });
 

@@ -92,6 +92,25 @@ export const getById = query({
   },
 });
 
+export const getByIdForEditor = query({
+  args: { id: v.id("posts") },
+  handler: async (ctx, { id }) => {
+    try {
+      await requireAdminQuery(ctx);
+    } catch {
+      return null;
+    }
+    const post = await ctx.db.get(id);
+    if (!post) {
+      return null;
+    }
+    const coverUrl = post.coverImage
+      ? await ctx.storage.getUrl(post.coverImage)
+      : null;
+    return { ...post, coverUrl };
+  },
+});
+
 export const listPublished = query({
   args: {
     paginationOpts: paginationOptsValidator,

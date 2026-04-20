@@ -10,17 +10,30 @@ const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
 function useConvexAuthFromCookie() {
   const [isLoading, setIsLoading] = useState(true);
-  const fetchAccessToken = useCallback(async () => {
-    const res = await fetch("/api/auth/token", { credentials: "include" });
-    const data = (await res.json()) as { token: string | null };
-    return data.token;
-  }, []);
+
+  const fetchAccessToken = useCallback(
+    async (_args?: { forceRefreshToken: boolean }) => {
+      const res = await fetch("/api/auth/token", { credentials: "include" });
+      const data = (await res.json()) as { token: string | null };
+      return data.token;
+    },
+    [],
+  );
+
+  const userId = useAuthStore((s) => s.user?.id);
+
   useEffect(() => {
     void fetchAccessToken().finally(() => setIsLoading(false));
-  }, [fetchAccessToken]);
+  }, [fetchAccessToken, userId]);
+
   return {
     isLoading,
-    isAuthenticated: false,
+    /**
+     * Must stay true so Convex runs `setAuth` and sends the cookie JWT. Returning false
+     * skips `setAuth` entirely (`ConvexAuthStateFirstEffect`). `fetchAccessToken` returns
+     * `null` when logged out — the client clears auth from that.
+     */
+    isAuthenticated: true,
     fetchAccessToken,
   };
 }

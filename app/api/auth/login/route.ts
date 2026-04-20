@@ -4,6 +4,7 @@ import { z } from "zod";
 import { api } from "@/convex/_generated/api";
 import { AUTH_COOKIE } from "@/lib/constants";
 import { signAccessToken } from "@/lib/jwt";
+import { getRequestIssuer } from "@/lib/request-issuer";
 
 const schema = z.object({
   email: z.string().email(),
@@ -21,12 +22,15 @@ export async function POST(req: Request) {
   if (!user) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }
-  const token = await signAccessToken({
-    sub: user.userId,
-    email: user.email,
-    name: user.name,
-    role: user.role,
-  });
+  const token = await signAccessToken(
+    {
+      sub: user.userId,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    },
+    getRequestIssuer(req),
+  );
   const res = NextResponse.json({
     ok: true,
     user: {
