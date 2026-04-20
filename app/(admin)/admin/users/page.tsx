@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { useConvexSessionReady } from "@/hooks/useConvexSessionReady";
 
 export default function AdminUsersPage() {
+  const { isLoading: convexAuthLoading, isAuthenticated } = useConvexAuth();
   const sessionReady = useConvexSessionReady();
   /** Avoid firing before Convex `setAuth` finishes — first unauthenticated result was sticky on this page. */
   const result = useQuery(
@@ -52,10 +53,28 @@ export default function AdminUsersPage() {
         </p>
       </div>
 
-      {!sessionReady || result === undefined ? (
+      {convexAuthLoading ? (
         <div className="flex items-center gap-2 text-zinc-400">
           <Loader2 className="size-5 animate-spin" />
-          {!sessionReady ? "Connecting session…" : "Loading users…"}
+          Connecting session…
+        </div>
+      ) : !isAuthenticated ? (
+        <div className="rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-4 text-sm text-amber-100/95">
+          <p className="font-medium text-amber-50">Convex doesn’t see a logged-in session.</p>
+          <p className="mt-2 text-amber-100/80">
+            Ensure <code className="text-amber-200">SITE_URL</code> matches your browser origin on both Vercel and Convex;
+            use <code className="text-amber-200">CONVEX_AUTH_JWKS_DATA_URI</code> from{" "}
+            <code className="text-amber-200">npm run convex:jwks-uri</code> if JWKS isn’t public. Add matching origins to{" "}
+            <code className="text-amber-200">JWT_EXTRA_ISSUERS</code> if you use www and apex. Hard refresh, sign out, sign in.
+          </p>
+          <Button asChild className="mt-4 bg-[#F5A623] text-black hover:bg-[#e69b1f]">
+            <Link href="/login">Go to login</Link>
+          </Button>
+        </div>
+      ) : result === undefined ? (
+        <div className="flex items-center gap-2 text-zinc-400">
+          <Loader2 className="size-5 animate-spin" />
+          Loading users…
         </div>
       ) : !result.ok ? (
         <div className="rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-4 text-sm text-amber-100/95">
