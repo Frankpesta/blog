@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { Loader2 } from "lucide-react";
@@ -10,8 +11,15 @@ import { Button } from "@/components/ui/button";
 import type { Id } from "@/convex/_generated/dataModel";
 import { cn } from "@/lib/utils";
 import { useConvexSessionReady } from "@/hooks/useConvexSessionReady";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
+import { UserListSkeleton } from "@/components/admin/admin-skeletons";
+import { adminPageMeta } from "@/lib/admin-routes";
+import { Users } from "lucide-react";
 
 export default function AdminUsersPage() {
+  const pathname = usePathname();
+  const { title, description } = adminPageMeta(pathname);
   const { isLoading: convexAuthLoading, isAuthenticated } = useConvexAuth();
   const sessionReady = useConvexSessionReady();
   /** Avoid firing before Convex `setAuth` finishes — first unauthenticated result was sticky on this page. */
@@ -43,21 +51,17 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-heading text-3xl font-bold text-white">Users</h1>
-        <p className="mt-2 max-w-2xl text-sm text-zinc-400">
-          Admins can publish and manage posts. This app uses Convex Auth; sign-in is handled on the
-          Convex side. If something looks out of sync, ensure <code className="text-[#F5A623]">CONVEX_SITE_URL</code> on
-          your deployment matches the site people use in the browser.
-        </p>
-      </div>
+    <div className="space-y-8">
+      <AdminPageHeader title={title} description={description} />
+
+      <p className="max-w-2xl text-sm leading-relaxed text-zinc-500">
+        Admins can publish and manage posts. Sign-in uses Convex Auth. If roles look wrong, confirm{" "}
+        <code className="rounded bg-white/[0.06] px-1.5 py-0.5 text-[#F5A623]">CONVEX_SITE_URL</code>{" "}
+        on your deployment matches the origin people use in the browser.
+      </p>
 
       {convexAuthLoading ? (
-        <div className="flex items-center gap-2 text-zinc-400">
-          <Loader2 className="size-5 animate-spin" />
-          Connecting session…
-        </div>
+        <UserListSkeleton count={3} />
       ) : !isAuthenticated ? (
         <div className="rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-4 text-sm text-amber-100/95">
           <p className="font-medium text-amber-50">Convex doesn’t see a logged-in session.</p>
@@ -70,10 +74,7 @@ export default function AdminUsersPage() {
           </Button>
         </div>
       ) : result === undefined ? (
-        <div className="flex items-center gap-2 text-zinc-400">
-          <Loader2 className="size-5 animate-spin" />
-          Loading users…
-        </div>
+        <UserListSkeleton count={6} />
       ) : !result.ok ? (
         <div className="rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-4 text-sm text-amber-100/95">
           {result.reason === "not_authenticated" ? (
@@ -99,9 +100,11 @@ export default function AdminUsersPage() {
           )}
         </div>
       ) : result.users.length === 0 ? (
-        <p className="rounded-xl border border-white/10 bg-[#111827] px-4 py-3 text-sm text-zinc-400">
-          No users in the database yet. When people register, they appear here.
-        </p>
+        <AdminEmptyState
+          icon={Users}
+          title="No users yet"
+          description="When people register, they appear here so you can promote admins or review accounts."
+        />
       ) : (
         <div className="space-y-2">
           {result.users.map((u) => {
@@ -109,7 +112,7 @@ export default function AdminUsersPage() {
             return (
               <div
                 key={u._id}
-                className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-white/10 bg-[#111827] px-4 py-3"
+                className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-white/10 bg-[#111827]/90 px-4 py-3 shadow-sm ring-1 ring-white/[0.04] transition-colors hover:bg-[#111827]"
               >
                 <div>
                   <p className="font-medium text-zinc-100">{u.name}</p>

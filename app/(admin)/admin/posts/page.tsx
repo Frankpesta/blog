@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -18,10 +19,27 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useAdminStore } from "@/stores/useAdminStore";
 import { toast } from "sonner";
 import { useConvexSessionReady } from "@/hooks/useConvexSessionReady";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
+import { TableSkeleton } from "@/components/admin/admin-skeletons";
+import { adminPageMeta } from "@/lib/admin-routes";
+import { FileText } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const filters: { id: "all" | "draft" | "published" | "scheduled"; label: string }[] =
+  [
+    { id: "all", label: "All" },
+    { id: "draft", label: "Draft" },
+    { id: "published", label: "Published" },
+    { id: "scheduled", label: "Scheduled" },
+  ];
 
 export default function AdminPostsPage() {
+  const pathname = usePathname();
+  const { title, description } = adminPageMeta(pathname);
   const sessionReady = useConvexSessionReady();
   const filter = useAdminStore((s) => s.postStatusFilter);
+  const setPostStatusFilter = useAdminStore((s) => s.setPostStatusFilter);
   const posts = useQuery(
     api.posts.listForAdmin,
     sessionReady
@@ -94,78 +112,120 @@ export default function AdminPostsPage() {
     return false;
   }, [allSelected, someSelected]);
 
+  const loading = !sessionReady || posts === undefined;
+  const empty = sessionReady && posts !== undefined && posts.length === 0;
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="font-heading text-3xl font-bold text-white">Posts</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          {selectedCount > 0 ? (
+    <div className="space-y-8">
+      <AdminPageHeader
+        title={title}
+        description={description}
+        actions={
+          <>
+            {selectedCount > 0 ? (
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={() => void handleBulkDelete()}
+              >
+                Delete ({selectedCount})
+              </Button>
+            ) : null}
             <Button
-              type="button"
-              variant="destructive"
-              size="sm"
-              onClick={() => void handleBulkDelete()}
+              asChild
+              className="bg-[#F5A623] text-black shadow-md shadow-[#F5A623]/15 hover:bg-[#e69b1f]"
             >
-              Delete selected ({selectedCount})
+              <Link href="/admin/posts/new">New post</Link>
             </Button>
-          ) : null}
+          </>
+        }
+      />
+
+      <div className="flex flex-wrap gap-1 rounded-xl border border-white/10 bg-[#111827]/60 p-1 ring-1 ring-white/[0.04]">
+        {filters.map(({ id, label }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setPostStatusFilter(id)}
+            className={cn(
+              "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+              filter === id
+                ? "bg-[#F5A623]/20 text-[#F5A623] shadow-sm"
+                : "text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200",
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <TableSkeleton rows={8} />
+      ) : empty ? (
+        <AdminEmptyState
+          icon={FileText}
+          title="No posts yet"
+          description="Create your first post or add categories so drafts have somewhere to live."
+        >
           <Button asChild className="bg-[#F5A623] text-black hover:bg-[#e69b1f]">
-            <Link href="/admin/posts/new">New post</Link>
+            <Link href="/admin/posts/new">Create post</Link>
           </Button>
-        </div>
-      </div>
-      <div className="rounded-xl border border-white/10 bg-[#111827]">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-zinc-700 hover:bg-transparent">
-              <TableHead className="w-10 text-zinc-300">
-                <Checkbox
-                  checked={headerCheckboxState}
-                  onCheckedChange={(v) =>
-                    toggleAll(v === true || v === "indeterminate")
-                  }
-                  aria-label="Select all posts"
-                />
-              </TableHead>
-              <TableHead className="text-zinc-300">Title</TableHead>
-              <TableHead className="text-zinc-300">Status</TableHead>
-              <TableHead className="text-zinc-300">Views</TableHead>
-              <TableHead className="text-zinc-300">Updated</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(posts ?? []).map((p) => (
-              <TableRow key={p._id} className="border-zinc-800">
-                <TableCell className="align-middle">
+        </AdminEmptyState>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-white/10 bg-[#111827]/80 shadow-lg shadow-black/20 ring-1 ring-white/[0.05]">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-zinc-700/80 hover:bg-transparent">
+                <TableHead className="w-10 text-zinc-400">
                   <Checkbox
-                    checked={selected.has(p._id)}
-                    onCheckedChange={(v) => toggleRow(p._id, v === true)}
-                    aria-label={`Select ${p.title}`}
+                    checked={headerCheckboxState}
+                    onCheckedChange={(v) =>
+                      toggleAll(v === true || v === "indeterminate")
+                    }
+                    aria-label="Select all posts"
                   />
-                </TableCell>
-                <TableCell>
-                  <Link
-                    href={`/admin/posts/${p._id}/edit`}
-                    className="font-medium text-[#F5A623] hover:underline"
-                  >
-                    {p.title}
-                  </Link>
-                </TableCell>
-                <TableCell className="text-zinc-400">{p.status}</TableCell>
-                <TableCell className="text-zinc-400">{p.views}</TableCell>
-                <TableCell className="text-sm text-zinc-500">
-                  {new Date(p.updatedAt).toLocaleDateString()}
-                </TableCell>
+                </TableHead>
+                <TableHead className="text-zinc-400">Title</TableHead>
+                <TableHead className="text-zinc-400">Status</TableHead>
+                <TableHead className="text-zinc-400">Views</TableHead>
+                <TableHead className="text-zinc-400">Updated</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-      {sessionReady && posts !== undefined && !posts.length ? (
-        <p className="text-zinc-500">
-          No posts yet. Seed categories in Convex or create a new post.
-        </p>
-      ) : null}
+            </TableHeader>
+            <TableBody>
+              {posts!.map((p) => (
+                <TableRow
+                  key={p._id}
+                  className="border-zinc-800/80 transition-colors hover:bg-white/[0.03]"
+                >
+                  <TableCell className="align-middle">
+                    <Checkbox
+                      checked={selected.has(p._id)}
+                      onCheckedChange={(v) => toggleRow(p._id, v === true)}
+                      aria-label={`Select ${p.title}`}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Link
+                      href={`/admin/posts/${p._id}/edit`}
+                      className="font-medium text-[#F5A623] hover:underline"
+                    >
+                      {p.title}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="text-zinc-400">{p.status}</TableCell>
+                  <TableCell className="tabular-nums text-zinc-400">
+                    {p.views}
+                  </TableCell>
+                  <TableCell className="text-sm text-zinc-500">
+                    {new Date(p.updatedAt).toLocaleDateString()}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }
